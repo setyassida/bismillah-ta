@@ -1,0 +1,5 @@
+to do list
+
+1. sort object berdasarkan value yang dimiliki
+2. cari initial d-score dari semua data yang ada di windows
+3. cari d-score update semua object yang ada di windows ketika ada data yang masuk dan keluar

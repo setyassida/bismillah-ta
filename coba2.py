@@ -131,6 +131,6 @@ if __name__ == '__main__':
     for row in site1[window_size:]:
         insert(row)
 
-    for x in range(len(site1)):
-        print (site1[x].id)
+    # for x in range(len(site1)):
+    #     print (site1[x].id)
             
