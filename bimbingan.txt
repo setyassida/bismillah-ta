@@ -1,4 +1,4 @@
-Bimbingan 25 Mei 2018
+----- Bimbingan 25 Mei 2018 -----
 
 Untuk Testing :
 
@@ -13,3 +13,43 @@ Memory Usage --> disajikan pakai tabel
 
 
 mengurangi dscore yang dia dominasi
+
+
+PROSES INITIAL STATE
+yang belum 
+1. cari tau dia di dominasi oleh siapa saja? --
+
+2. dscore sentral
+3. filter by dscore di sentral --> cari cand
+
+4. broadcast ke tiap site
+5. hitung score sebenarnya
+6. kembalikan ke sentral
+7. sort by score
+8. get top-k
+
+ITERASI > 1
+
+
+titik bari cari score
+
+
+
+----- Bimbingan 30 Mei 2018 -----
+
+SITE:
+cari dscore di site
+    kalo dscore kurang dari k
+        cari real score
+            if real score > score ke top-kalo
+                masukin data jadi top-kalo
+            else
+                bikin antrian di sentral
+                    event_time dia = (score top-k - score dia) / 2
+    kalo dscore lebih dari k
+        inform ke top-k, -> update score yanga ada di top-k
+        bikin antrian di site
+            event_time dia = (score top-k - score dia) / 2
+
+
+BACA YANG PAPER NYA MARIA KONTAKI Yang bagian ADA untuk mengurangi biaya komputasi 

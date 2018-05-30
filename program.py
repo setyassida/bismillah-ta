@@ -1,15 +1,34 @@
 import code
 import csv
 import math
-import operator as op
 import sys
 import time
+import pickle
 import multiprocessing
+import operator as op
 
 from collections import deque
 from itertools import islice
+from tqdm import tqdm
 
 import numpy as np
+
+
+
+# deklarasi variabel
+k = 3
+dimension = 2
+window_size = 15
+grid_range = [5, 5] # [] for dimension a, b, c, ....
+
+file_path1 = "dataset/pico15.csv"
+file_path2 = "dataset/pico15_2.csv"
+file_path3 = "dataset/pico15.csv"  
+
+
+pkl_site_1 = "pkl_data/data_site_1.pkl"  
+pkl_site_2 = "pkl_data/data_site_2.pkl"  
+pkl_site_3 = "pkl_data/data_site_3.pkl"  
 
 
 class Object:
@@ -21,10 +40,12 @@ class Object:
         self.arr = arr
         self.exp = exp
         self.position = list()
+        self.dominate_object = list()
         self.site_id = site_id
+        self.cand_flag = 0
 
     def __repr__(self):
-        return repr((self.id, self.value, self.dscore, self.score, self.arr, self.exp, self.position, self.site_id))
+        return repr((self.id, self.value, self.dscore, self.score, self.arr, self.exp, self.position, self.dominate_object, self.site_id))
 
 class Grid:
     def __init__(self, pos, total):
@@ -48,7 +69,6 @@ def read_data(file_path, window_size, site_id):
 
     return site
 
-
 def dominate(obj1, obj2, dimension):
     dominate_status = 0
     for i in range(0, dimension):
@@ -64,16 +84,16 @@ def dominate(obj1, obj2, dimension):
             dominate_status = -1
     return dominate_status
 
-
-def calculate_score(window_site, dimension, grid_range):
+def calculate_score(window_site):
     sorted_window_site = sorted(window_site, key = lambda object:object.value)
-    sorted_window_site_by_id = sorted(window_site, key = lambda object:object.id)    
+    sorted_window_site_by_id = sorted(window_site, key = lambda object:object.id)
+
     list_grid_position = list()
     grid_site = list()
 
     max_grid_loc_site  = list()
 
-    for i in range(len(sorted_window_site)):
+    for i in tqdm(range(len(sorted_window_site))):
         temp_pos = list()
 
         # mencari posisi grid tiap object data, --> dimasukkan ke Object.pos
@@ -114,20 +134,20 @@ def calculate_score(window_site, dimension, grid_range):
                   
         list_grid_position.append(temp_pos)
 
-    print("\n--- list seluruh object yang ada pada site tersebut ---")
-    for elem in sorted_window_site:
-        print(elem)
+    # print("\n--- list seluruh object yang ada pada site tersebut ---")
+    # for elem in sorted_window_site:
+    #     print(elem)
     
     list_grid_position = sorted(list_grid_position)
 
-    print("\n--- list posisi grid-grid yang ada ---")
-    print(list_grid_position)
+    # print("\n--- list posisi grid-grid yang ada ---")
+    # print(list_grid_position)
 
-    print("\n--- list seluruh object grid (posisi, total oject pada grid tersebut) ---")
-    for elem in grid_site:
-        print(elem)
+    # print("\n--- list seluruh object grid (posisi, total oject pada grid tersebut) ---")
+    # for elem in grid_site:
+    #     print(elem)
 
-    for x in range(len(sorted_window_site)):
+    for x in tqdm(range(len(sorted_window_site))):
         get_pos = sorted_window_site[x].position
         temp = list()
         # print(get_pos)
@@ -175,7 +195,6 @@ def calculate_score(window_site, dimension, grid_range):
                                 elif (dominate_status == -1):
                                     sorted_window_site[x].dscore += 1
                     
-
             # yang dihiraukan
             for i in range(0, get_pos[0]-1):
                 for j in range(0, get_pos[1]-1):
@@ -185,39 +204,352 @@ def calculate_score(window_site, dimension, grid_range):
                         if (elem.pos == temp):
                             sorted_window_site[x].dscore += elem.total
     
-    return sorted_window_site
+    deque_sorted_window_site = deque()
+    sorted_window_site = sorted(sorted_window_site, key = lambda object:object.id)
+    for elem in sorted_window_site:
+        deque_sorted_window_site.append(elem)
+
+    return deque_sorted_window_site
+
+def calculate_sentral_dscore(sentral_site):
+    sorted_sentral_site = sorted(sentral_site, key = lambda object:object.value)
+    sorted_sentral_site_by_id = sorted(sentral_site, key = lambda object:object.id)
+
+    list_grid_position = list()
+    grid_site = list()
+
+    max_grid_loc_site  = list()
+
+    for i in tqdm(range(len(sorted_sentral_site))):
+        temp_pos = list()
+
+        del sorted_sentral_site[i].position[:]
+        sorted_sentral_site[i].score = 0
+
+        # mencari posisi grid tiap object data, --> dimasukkan ke Object.pos
+        for j in range(dimension):
+            x = int(sorted_sentral_site[i].value[j]) / grid_range[j]
+            x = math.ceil(x)
+            if x == 0:
+                x = 1
+            temp_pos.append(x)
+
+            # mencari max value grid
+            if(len(max_grid_loc_site) != 0):
+                if(max_grid_loc_site[j] < x):
+                    max_grid_loc_site[j] = x
+
+        if(len(max_grid_loc_site) == 0):
+            max_grid_loc_site.extend(temp_pos)
+
+        # print("tempos", temp_pos)
+        for k in range(len(temp_pos)):
+            sorted_sentral_site[i].position.append(temp_pos[k])  
+        
+        # print("list grid pos ", list_grid_position)
+        if(temp_pos in list_grid_position):
+            # print("tempos juga")
+            # menghitung jumlah object yang ada di dalam grid tersebut            
+            for x in range(len(grid_site)):
+                if(grid_site[x].pos) == temp_pos:
+                    grid_site[x].total += 1
+                    grid_site[x].list_id_object.append(sorted_sentral_site[i].id) # menambahkah id object ke dalam grid
+            continue
+
+        temp_grid_site = Grid(temp_pos, 1)
+        temp_grid_site.list_id_object.append(sorted_sentral_site[i].id) # menambahkah id object ke dalam grid
+        # print("temp_grid_site", temp_grid_site)
+        grid_site.append(temp_grid_site)
+        # print("grid_site", grid_site)
+                  
+        list_grid_position.append(temp_pos)
+
+    # print("\n--- list seluruh object yang ada pada site tersebut ---")
+    # for elem in sorted_window_site:
+    #     print(elem)
+    
+    list_grid_position = sorted(list_grid_position)
+
+    # print("\n--- list posisi grid-grid yang ada ---")
+    # print(list_grid_position)
+
+    # print("\n--- list seluruh object grid (posisi, total oject pada grid tersebut) ---")
+    # for elem in grid_site:
+    #     print(elem)
+
+    for x in tqdm(range(len(sorted_sentral_site))):
+        get_pos = sorted_sentral_site[x].position
+        temp = list()
+        # print(get_pos)
+        # print(max_grid_loc_site)
+
+        if(dimension == 2):
+            # cek fully dominated
+            for i in range(get_pos[0], max_grid_loc_site[0]):
+                for j in range(get_pos[1], max_grid_loc_site[1]):
+                    temp = [i+1, j+1]
+                    # print("iki pos e", temp)
+                    # for elem in grid_site:
+                    #     if (elem.pos == temp):
+                    #         sorted_window_site[x].score += elem.total
+            
+            # cek satu2
+            cheking_list = list()
+            
+            # dimensi x
+            for i in range(max_grid_loc_site[0]):
+                temp = [i+1, get_pos[1]]
+                if(temp in cheking_list):
+                    continue
+                else:
+                    cheking_list.append(temp)
+            
+            #dimensi y
+            for i in range(max_grid_loc_site[1]):
+                temp = [get_pos[0], i+1]
+                if(temp in cheking_list):
+                    continue
+                else:
+                    cheking_list.append(temp)
+            
+            for temp in cheking_list:
+                for elem in grid_site:
+                    if(elem.pos == temp):
+                        for row in elem.list_id_object:
+                            if(sorted_sentral_site[x].id == row):
+                                continue
+                            else:
+                                dominate_status = dominate(sorted_sentral_site[x].value, sorted_sentral_site_by_id[row-1].value, dimension)
+                                # if (dominate_status == 1):
+                                #     sorted_window_site[x].score += 1
+                                if (dominate_status == -1):
+                                    sorted_sentral_site[x].dscore += 1
+                    
+            # yang dihiraukan
+            for i in range(0, get_pos[0]-1):
+                for j in range(0, get_pos[1]-1):
+                    temp = [i+1, j+1]
+                    # print("iki pos e", temp)
+                    for elem in grid_site:
+                        if (elem.pos == temp):
+                            sorted_sentral_site[x].dscore += elem.total
+    
+    deque_sorted_sentral = deque()
+    sorted_sentral_site = sorted(sorted_sentral_site, key = lambda object:object.id)
+    for elem in sorted_sentral_site:
+        deque_sorted_sentral.append(elem)
+
+    return deque_sorted_sentral
+
+def dist_score_comp_processing(cand, site, id_site, pkl_name):
+    
+    for i in range(len(cand)):
+        
+        if(cand[i].site_id != id_site):
+            print("harusnya beda ",cand[i].site_id, id_site)
+            site.append(cand[i])
+
+
+    site_calculated = calculate_score(site)
+    with open(pkl_name, "wb") as f:
+        pickle.dump(len(site_calculated), f)
+        for row in site_calculated:
+            pickle.dump(row, f)
+
+    
+
+
+
+def dist_score_comp(cand, site1, site2, site3):
+    
+    # print("INI UDAH DI FUNGSI DIST_SCORE_COMP")
+    # print("CAND")
+    # for i in range(len(cand)):
+    #     print(cand[i])
+
+    # print("SITE 1")    
+    # for i in range(len(site1)):
+    #     print(site1[i])
+
+    # print("SITE 2")        
+    # for i in range(len(site2)):
+    #     print(site2[i])
+
+    # print("SITE 3")        
+    # for i in range(len(site3)):
+    #     print(site3[i])
+
+    p1 = multiprocessing.Process(target = dist_score_comp_processing, args = (cand, site1, 1, pkl_site_1))
+    p2 = multiprocessing.Process(target = dist_score_comp_processing, args = (cand, site2, 2, pkl_site_2))
+    p3 = multiprocessing.Process(target = dist_score_comp_processing, args = (cand, site3, 3, pkl_site_3))
+
+    p1.start()
+    p1.join()
+
+    p2.start()
+    p2.join()
+    
+    p3.start()
+    p3.join()
+
+    with open(pkl_site_1, "rb") as f:
+        for _ in range(pickle.load(f)):
+            site1_calculated.append(pickle.load(f))
+
+    with open(pkl_site_2, "rb") as f:
+        for _ in range(pickle.load(f)):
+            site2_calculated.append(pickle.load(f))
+
+    with open(pkl_site_3, "rb") as f:
+        for _ in range(pickle.load(f)):
+            site3_calculated.append(pickle.load(f))
+
+    print("----JADILAH APA 1----")
+    for i in range(len(site1_calculated)):
+        print(site1_calculated[i])
+
+    print("----JADILAH APA 2----")
+    for i in range(len(site2_calculated)):
+        print(site2_calculated[i])
+
+    print("----JADILAH APA 3----")
+    for i in range(len(site3_calculated)):
+        print(site3_calculated[i])
+
+    return cand
+
+
+def site_processing(site, pkl_name):
+    window_site = deque()
+
+    for i in range(window_size):
+        window_site.append(site[i])
+    del site[:window_size]
+
+    # for i in range(len(window_site)):
+    #     print(window_site[i])
+
+    window_site = calculate_score(window_site)
+
+    with open(pkl_name, "wb") as f:
+        pickle.dump(len(window_site), f)
+        for row in window_site:
+            pickle.dump(row, f)
+
+    # for i in range(len(window_site)):
+    #     pickle.dump(window_site[i], output)
+    #     site_calculated[i] = window_site[i].id
+
+
+    # counter = 0
+    # while(counter < len(site)):
+
+    #     window_site = calculate_score(window_site, dimension, grid_range)
+
+    #     # for i in range(window_site):
+    #     #     print(window_site[i])
+
+    #     time.sleep(3)
+
+    #     hilang = window_site[0]
+    #     # print(hilang)
+        
+    #     window_site.popleft()
+    #     # print(site[counter])
+        
+    #     window_site.append(site[counter])
+    #     # print(window_site)
+        
+    #     counter = counter + 1
+    
+
 
 if __name__ == "__main__":
-    # deklarasi variabel
-    k = 3
-    dimension = 2
-    window_size = 15
-    grid_range = [5, 5] # [] for dimension a, b, c, ....
-    time_interval = 5
-    t_current = 0
-    lower_bound = 0
-
-    file_path1 = "dataset/pico15.csv"
-    file_path2 = "dataset/pico15.csv"
-
     central_site = list()
     topk_central_site = list()
 
     site1 = list()
     site1 = read_data(file_path1, window_size, 1)
-    site1_by_id =  sorted(site1, key = lambda object:object.id)
-    
+    site1 = sorted(site1, key = lambda object:object.id)
+
     site2 = list()
     site2 = read_data(file_path2, window_size, 2)
-    site2_by_id = sorted(site2, key = lambda object:object.id)
+    site2 = sorted(site2, key = lambda object:object.id)
 
-    window_site1 = deque()
-    window_site2 = deque()
+    site3 = list()
+    site3 = read_data(file_path3, window_size, 3)
+    site3 = sorted(site3, key = lambda object:object.id)
 
-    for i in range(window_size):
-        window_site1.append(site1[i])
-        window_site2.append(site2[i])
+    p1 = multiprocessing.Process(target = site_processing, args = (site1, pkl_site_1))
+    p2 = multiprocessing.Process(target = site_processing, args = (site2, pkl_site_2))
+    p3 = multiprocessing.Process(target = site_processing, args = (site3, pkl_site_3))
+
+    p1.start()
+    p1.join()
+
+    p2.start()
+    p2.join()
     
-    print("BISMILLAH")
-    for i in range(len(window_site1)):
-        print(window_site1[i])
+    p3.start()
+    p3.join()
+
+    site1_calculated = deque()
+    site2_calculated = deque()
+    site3_calculated = deque()
+
+    with open(pkl_site_1, "rb") as f:
+        for _ in range(pickle.load(f)):
+            site1_calculated.append(pickle.load(f))
+
+    with open(pkl_site_2, "rb") as f:
+        for _ in range(pickle.load(f)):
+            site2_calculated.append(pickle.load(f))
+
+    with open(pkl_site_3, "rb") as f:
+        for _ in range(pickle.load(f)):
+            site3_calculated.append(pickle.load(f))
+
+    print("----BISMILLAH 1----")
+    for i in range(len(site1_calculated)):
+        print(site1_calculated[i])
+
+    print("----BISMILLAH 2----")
+    for i in range(len(site2_calculated)):
+        print(site2_calculated[i])
+
+    print("----BISMILLAH 3----")
+    for i in range(len(site3_calculated)):
+        print(site3_calculated[i])
+
+    sent_to_sentral = list()
+    for i in range(window_size):
+        if(site1_calculated[i].dscore < k):
+            sent_to_sentral.append(site1_calculated[i])
+        if(site2_calculated[i].dscore < k):
+            sent_to_sentral.append(site2_calculated[i])
+        if(site3_calculated[i].dscore < k):
+            sent_to_sentral.append(site3_calculated[i])
+
+    print("----BISMILLAH !!----")
+    for i in range(len(sent_to_sentral)):
+        print(sent_to_sentral[i])
+
+    sentral_site = sent_to_sentral
+    sentral_site_calculated = calculate_sentral_dscore(sentral_site)
+    
+    print("----INIKAH HASILNYA----")
+    for i in range(len(sentral_site_calculated)):
+        print(sentral_site_calculated[i])
+
+    cand = deque()
+    for i in range(len(sentral_site_calculated)):
+        if(sentral_site_calculated[i].dscore < k):
+            cand.append(sentral_site_calculated[i])
+
+    print("----INI NIH CAND YANG AKAN DI BROADCAST----")
+    for i in range(len(cand)):
+        print(cand[i])
+
+    if (len(cand) > k):
+        cand_calculated = dist_score_comp(cand, site1_calculated, site2_calculated, site3_calculated)
+
