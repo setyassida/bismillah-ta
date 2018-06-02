@@ -9,6 +9,7 @@ import operator as op
 
 import numpy as np
 
+from sets import Set
 from collections import deque
 from itertools import islice
 from tqdm import tqdm
@@ -19,6 +20,7 @@ k = 3
 dimension = 2
 window_size = 15
 grid_range = [5, 5] # [] for dimension a, b, c, ....
+sent_to_sentral = list()
 
 file_path1 = "dataset/pico15.csv"
 file_path2 = "dataset/pico15_2.csv"
@@ -41,6 +43,12 @@ class Object:
         self.dominate_object = list()
         self.site_id = site_id
         self.cand_flag = 0
+
+    def __eq__(self, other):
+        return self.id == other.id
+
+    def __hash__(self):
+        return hash(self.id)
 
     def __repr__(self):
         return repr((self.id, self.value, self.dscore, self.score, self.arr, self.exp, self.position, self.dominate_object, self.site_id))
@@ -607,6 +615,16 @@ def site_processing(site, pkl_name):
         
     #     counter = counter + 1
 
+def next_site_processing(site, pkl_name):
+    window_site = deque()
+
+    window_site = calculate_score(window_site)
+
+    with open(pkl_name, "wb") as f:
+        pickle.dump(len(window_site), f)
+        for row in window_site:
+            pickle.dump(row, f)
+
 if __name__ == "__main__":
     central_site = list()
     topk_central_site = list()
@@ -664,7 +682,6 @@ if __name__ == "__main__":
     for i in range(len(site3_calculated)):
         print(site3_calculated[i])
 
-    sent_to_sentral = list()
     for i in range(window_size):
         if(site1_calculated[i].dscore < k):
             sent_to_sentral.append(site1_calculated[i])
@@ -679,6 +696,7 @@ if __name__ == "__main__":
 
     sentral_site = sent_to_sentral
     sentral_site_calculated = calculate_sentral_dscore(sentral_site)
+    sent_to_sentral = set(sent_to_sentral)
     
     print("----INIKAH HASILNYA----")
     for i in range(len(sentral_site_calculated)):
@@ -702,3 +720,62 @@ if __name__ == "__main__":
     print("TOP-K FINAL INITIAL STATE")
     for i in range(k):
         print(cand_calculated[i])
+
+    current_windows_site1 = deque(site1[0:window_size])
+    current_windows_site2 = deque(site2[0:window_size])
+    current_windows_site3 = deque(site3[0:window_size])
+    counter = window_size
+    
+    while(counter < len(site1)):
+        current_windows_site1.popleft()
+        current_windows_site1.append(site1[counter])
+
+        current_windows_site2.popleft()
+        current_windows_site2.append(site2[counter])
+
+        current_windows_site3.popleft()
+        current_windows_site3.append(site3[counter])
+        
+        p1 = multiprocessing.Process(target = next_site_processing, args = (current_windows_site1, pkl_site_1))
+        p2 = multiprocessing.Process(target = next_site_processing, args = (current_windows_site2, pkl_site_2))
+        p3 = multiprocessing.Process(target = next_site_processing, args = (current_windows_site3, pkl_site_3))
+
+        p1.start()
+        p1.join()
+        p2.start()
+        p2.join()
+        p3.start()
+        p3.join()
+
+        next_site1_calculated = set()
+        next_site2_calculated = set()
+        next_site3_calculated = set()
+
+        with open(pkl_site_1, "rb") as f:
+            for _ in range(pickle.load(f)):
+                next_site1_calculated.add(pickle.load(f))
+
+        generated_site1 = list(next_site1_calculated.difference(sent_to_sentral))
+        expired_site1 = list({x for x in sent_to_sentral.difference(next_site1_calculated) if x.site_id == 1})
+
+        with open(pkl_site_2, "rb") as f:
+            for _ in range(pickle.load(f)):
+                next_site2_calculated.add(pickle.load(f))
+
+        generated_site2 = list(next_site2_calculated.difference(sent_to_sentral))
+        expired_site2 = list({x for x in sent_to_sentral.difference(next_site2_calculated) if x.site_id == 2})
+
+        with open(pkl_site_3, "rb") as f:
+            for _ in range(pickle.load(f)):
+                next_site3_calculated.add(pickle.load(f))
+
+        generated_site3 = list(next_site3_calculated.difference(sent_to_sentral))
+        expired_site3 = list({x for x in sent_to_sentral.difference(next_site3_calculated) if x.site_id == 3})
+
+        ##do something with the expire and generated here
+
+
+        
+
+
+
