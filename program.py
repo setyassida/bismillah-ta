@@ -619,9 +619,7 @@ def site_processing(site, pkl_name):
     #     counter = counter + 1
 
 def next_site_processing(site, pkl_name):
-    window_site = deque()
-
-    window_site = calculate_score(window_site)
+    window_site = calculate_score(site)
 
     with open(pkl_name, "wb") as f:
         pickle.dump(len(window_site), f)
