@@ -9,6 +9,7 @@ import operator as op
 
 import numpy as np
 
+from sets import Set
 from collections import deque
 from itertools import islice
 from tqdm import tqdm
@@ -41,6 +42,12 @@ class Object:
         self.dominate_object = list()
         self.site_id = site_id
         self.cand_flag = 0
+
+    def __eq__(self, other):
+        return self.id == other.id
+
+    def __hash__(self):
+        return hash(self.id)
 
     def __repr__(self):
         return repr((self.id, self.value, self.dscore, self.score, self.arr, self.exp, self.position, self.dominate_object, self.site_id))
@@ -84,8 +91,9 @@ def dominate(obj1, obj2, dimension):
 
 def calculate_score(window_site):
     sorted_window_site = sorted(window_site, key = lambda object:object.value)
-    sorted_window_site_by_id = sorted(window_site, key = lambda object:object.id)
-
+    sorted_window_site_by_id = {}
+    for site_data in sorted_window_site:
+        sorted_window_site_by_id[site_data.id] = site_data
     list_grid_position = list()
     grid_site = list()
 
@@ -187,7 +195,7 @@ def calculate_score(window_site):
                             if(sorted_window_site[x].id == row):
                                 continue
                             else:
-                                dominate_status = dominate(sorted_window_site[x].value, sorted_window_site_by_id[row-1].value, dimension)
+                                dominate_status = dominate(sorted_window_site[x].value, sorted_window_site_by_id[row].value, dimension)
                                 if (dominate_status == 1):
                                     sorted_window_site[x].score += 1
                                 elif (dominate_status == -1):
@@ -212,8 +220,9 @@ def calculate_score(window_site):
 def calculate_real_score(window_site):
     # sorted_window_site = sorted(window_site, key = lambda object:object.value)
     sorted_window_site = window_site
-    sorted_window_site_by_id = sorted(window_site, key = lambda object:object.id)
-
+    sorted_window_site_by_id = {}
+    for site_data in sorted_window_site:
+        sorted_window_site_by_id[site_data.id] = site_data
     list_grid_position = list()
     grid_site = list()
 
@@ -318,7 +327,7 @@ def calculate_real_score(window_site):
                             if(sorted_window_site[x].id == row):
                                 continue
                             else:
-                                dominate_status = dominate(sorted_window_site[x].value, sorted_window_site_by_id[row-1].value, dimension)
+                                dominate_status = dominate(sorted_window_site[x].value, sorted_window_site_by_id[row].value, dimension)
                                 if (dominate_status == 1):
                                     sorted_window_site[x].score += 1
                                 elif (dominate_status == -1):
@@ -342,7 +351,9 @@ def calculate_real_score(window_site):
 
 def calculate_sentral_dscore(sentral_site):
     sorted_sentral_site = sorted(sentral_site, key = lambda object:object.value)
-    sorted_sentral_site_by_id = sorted(sentral_site, key = lambda object:object.id)
+    sorted_sentral_site_by_id = {}
+    for site_data in sorted_sentral_site:
+        sorted_sentral_site_by_id[site_data.id] = site_data
 
     list_grid_position = list()
     grid_site = list()
@@ -448,7 +459,7 @@ def calculate_sentral_dscore(sentral_site):
                             if(sorted_sentral_site[x].id == row):
                                 continue
                             else:
-                                dominate_status = dominate(sorted_sentral_site[x].value, sorted_sentral_site_by_id[row-1].value, dimension)
+                                dominate_status = dominate(sorted_sentral_site[x].value, sorted_sentral_site_by_id[row].value, dimension)
                                 # if (dominate_status == 1):
                                 #     sorted_window_site[x].score += 1
                                 if (dominate_status == -1):
@@ -607,6 +618,14 @@ def site_processing(site, pkl_name):
         
     #     counter = counter + 1
 
+def next_site_processing(site, pkl_name):
+    window_site = calculate_score(site)
+
+    with open(pkl_name, "wb") as f:
+        pickle.dump(len(window_site), f)
+        for row in window_site:
+            pickle.dump(row, f)
+
 if __name__ == "__main__":
     central_site = list()
     topk_central_site = list()
@@ -665,6 +684,7 @@ if __name__ == "__main__":
         print(site3_calculated[i])
 
     sent_to_sentral = list()
+
     for i in range(window_size):
         if(site1_calculated[i].dscore < k):
             sent_to_sentral.append(site1_calculated[i])
@@ -679,6 +699,7 @@ if __name__ == "__main__":
 
     sentral_site = sent_to_sentral
     sentral_site_calculated = calculate_sentral_dscore(sentral_site)
+    sent_to_sentral = set(sent_to_sentral)
     
     print("----INIKAH HASILNYA----")
     for i in range(len(sentral_site_calculated)):
@@ -702,3 +723,79 @@ if __name__ == "__main__":
     print("TOP-K FINAL INITIAL STATE")
     for i in range(k):
         print(cand_calculated[i])
+
+    ## initial windows
+    current_windows_site1 = deque(site1[0:window_size])
+    current_windows_site2 = deque(site2[0:window_size])
+    current_windows_site3 = deque(site3[0:window_size])
+    counter = window_size
+    
+    ## begin sliding windows
+    while(counter < len(site1)):
+        current_windows_site1.popleft()
+        current_windows_site1.append(site1[counter])
+
+        current_windows_site2.popleft()
+        current_windows_site2.append(site2[counter])
+
+        current_windows_site3.popleft()
+        current_windows_site3.append(site3[counter])
+
+        ## calculate each site
+        p1 = multiprocessing.Process(target = next_site_processing, args = (current_windows_site1, pkl_site_1))
+        p2 = multiprocessing.Process(target = next_site_processing, args = (current_windows_site2, pkl_site_2))
+        p3 = multiprocessing.Process(target = next_site_processing, args = (current_windows_site3, pkl_site_3))
+
+        p1.start()
+        p1.join()
+        p2.start()
+        p2.join()
+        p3.start()
+        p3.join()
+
+        next_site1_calculated = list()
+        next_site2_calculated = list()
+        next_site3_calculated = list()
+
+        with open(pkl_site_1, "rb") as f:
+            for _ in range(pickle.load(f)):
+                next_site1_calculated.append(pickle.load(f))
+
+        ## find expired, and new generated data by finding the difference between 2 set
+        filtered_site1 = set([datum for datum in next_site1_calculated if datum.dscore < k])
+        generated_site1 = filtered_site1.difference(sent_to_sentral)
+        expired_site1 = set({x for x in sent_to_sentral.difference(filtered_site1) if x.site_id == 1})
+
+        with open(pkl_site_2, "rb") as f:
+            for _ in range(pickle.load(f)):
+                next_site2_calculated.append(pickle.load(f))
+
+        filtered_site2 = set([datum for datum in next_site2_calculated if datum.dscore < k])
+        generated_site2 = filtered_site2.difference(sent_to_sentral)
+        expired_site2 = set({x for x in sent_to_sentral.difference(filtered_site2) if x.site_id == 2})
+
+        with open(pkl_site_3, "rb") as f:
+            for _ in range(pickle.load(f)):
+                next_site3_calculated.append(pickle.load(f))
+
+        filtered_site3 = set([datum for datum in next_site3_calculated if datum.dscore < k])
+        generated_site3 = filtered_site3.difference(sent_to_sentral)
+        expired_site3 = set({x for x in sent_to_sentral.difference(filtered_site3) if x.site_id == 3})
+
+
+        ## update central data
+        sent_to_sentral -= expired_site1
+        sent_to_sentral -= expired_site2
+        sent_to_sentral -= expired_site2
+        sent_to_sentral = sent_to_sentral.union(generated_site1)
+        sent_to_sentral = sent_to_sentral.union(generated_site2)
+        sent_to_sentral = sent_to_sentral.union(generated_site3)
+
+        counter = counter+1
+
+        ## do something with the expire and generated here
+
+        
+
+
+
