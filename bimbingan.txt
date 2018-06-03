@@ -53,3 +53,13 @@ cari dscore di site
 
 
 BACA YANG PAPER NYA MARIA KONTAKI Yang bagian ADA untuk mengurangi biaya komputasi 
+
+
+
+## CATATANNN
+
+kurang data generated nya harus ngefek kemana aja
+kurang data exp ngefek kemana aja
+
+calculated sentral
+top-k

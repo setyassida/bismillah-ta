@@ -9,7 +9,7 @@ import operator as op
 
 import numpy as np
 
-from sets import Set
+# from sets import Set
 from collections import deque
 from itertools import islice
 from tqdm import tqdm
@@ -794,8 +794,3 @@ if __name__ == "__main__":
         counter = counter+1
 
         ## do something with the expire and generated here
-
-        
-
-
-
