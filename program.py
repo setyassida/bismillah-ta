@@ -770,9 +770,9 @@ if __name__ == "__main__":
             for _ in range(pickle.load(f)):
                 next_site2_calculated.append(pickle.load(f))
 
-        filtered_site2 = set([datum for datum in next_site2_calculated if datum.dscore < k])
-        generated_site2 = filtered_site2.difference(sent_to_sentral)
-        expired_site2 = set({x for x in sent_to_sentral.difference(filtered_site2) if x.site_id == 2})
+        filtered_site2 = set([datum for datum in next_site2_calculated if datum.dscore < k]) 
+        generated_site2 = filtered_site2.difference(sent_to_sentral) #site dikurangin sentral
+        expired_site2 = set({x for x in sent_to_sentral.difference(filtered_site2) if x.site_id == 2}) #sentral dikurangin site
 
         with open(pkl_site_3, "rb") as f:
             for _ in range(pickle.load(f)):
@@ -781,7 +781,6 @@ if __name__ == "__main__":
         filtered_site3 = set([datum for datum in next_site3_calculated if datum.dscore < k])
         generated_site3 = filtered_site3.difference(sent_to_sentral)
         expired_site3 = set({x for x in sent_to_sentral.difference(filtered_site3) if x.site_id == 3})
-
 
         ## update central data
         sent_to_sentral -= expired_site1
