@@ -1,0 +1,24 @@
+titik data
+titik data aktif
+d-scores
+top-k dominating data
+k-skyband
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Tabel Simbol/Istilah:
+    d-score
+    k-skyband
+    H
